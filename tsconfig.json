@@ -1,0 +1,10 @@
+{
+	"compilerOptions": {
+		"strictNullChecks": false,
+		"skipLibCheck": true,
+		"outDir": "dist",
+		"lib": ["ES2020","DOM"],
+		"target": "ES2020",
+		"moduleResolution": "Node"
+	}
+}
