@@ -11,22 +11,26 @@ import { PropertyValue } from './PropertyValue';
 import { ListPropertyValue } from './ListPropertyValue';
 export {Datasource};
 
-const LOADER_WAIT_MS = 300;
-const entityMap = new Map<string,any>();
-const loadersMap = new Map<string,Function>();
-const pageLoadersMap = new Map<string,PageLoaderFunction>();
-const prototypes = new Map<string,Object>();
-
+const globals = globalThis.__naturaData || {
+	LOADER_WAIT_MS: 300,
+	entityMap:new Map<string,any>(),
+	loadersMap: new Map<string,Function>(),
+	pageLoadersMap: new Map<string,PageLoaderFunction>(),
+	prototypes: new Map<string,Object>()
+}
+if(!globalThis.__naturaData){
+	globalThis.__naturaData = globals;
+}
 
 function key(entityType:String, entityId: String){
 	return entityType + '\x01' + entityId;
 }
 
 export function storeProperty(entityType:string,entityId:string, property:string, propertyValue:any){	
-	let entry = entityMap.get(key(entityType,entityId));
+	let entry = globals.entityMap.get(key(entityType,entityId));
 	if(!entry){
 		entry = {};
-		entityMap.set(key(entityType,entityId),entry);
+		globals.entityMap.set(key(entityType,entityId),entry);
 	}
 	if(entry[property]){
 		entry[property].update(propertyValue);
@@ -36,7 +40,7 @@ export function storeProperty(entityType:string,entityId:string, property:string
 }
 
 export function errorLoadingProperty(entityType:string,entityId:string, property:string, error: ErrorObject){	
-	let entry = entityMap.get(key(entityType,entityId));
+	let entry = globals.entityMap.get(key(entityType,entityId));
 	if(!entry){
 		return;
 	}
@@ -51,12 +55,12 @@ export function startLoadingProperty(
 	entityId:string, 
 	property:string
 ){	
-	let entry = entityMap.get(key(entityType,entityId));
+	let entry = globals.entityMap.get(key(entityType,entityId));
 	if(!entry){
 		entry = {};
-		entityMap.set(key(entityType,entityId),entry);
+		globals.entityMap.set(key(entityType,entityId),entry);
 	}
-	const updatedEntry = entityMap.get(key(entityType,entityId));
+	const updatedEntry = globals.entityMap.get(key(entityType,entityId));
 	if(updatedEntry[property] === undefined){
 		updatedEntry[property] = new PropertyValue();
 	}
@@ -71,10 +75,10 @@ export function storeListProperty(
 	firstValuePos: number=0,
 	values:Array<any>=[],
 	state: Object={}){
-	let entry = entityMap.get(key(entityType,entityId));
+	let entry = globals.entityMap.get(key(entityType,entityId));
 	if(!entry){
 		entry = {};
-		entityMap.set(key(entityType,entityId),entry);
+		globals.entityMap.set(key(entityType,entityId),entry);
 	}
 	if(entry[property]){
 		entry[property].update(values,firstValuePos, state);
@@ -91,29 +95,29 @@ export function getPropertyEntry(
 	propertyName:string, 
 	context?: Object
 ) : any{
-	const entry = entityMap.get(key(entityType,entityId));
+	const entry = globals.entityMap.get(key(entityType,entityId));
 	if(entry && entry[propertyName] !== undefined){
 		return entry[propertyName];
 	}
 
 	//check if property loader exists
-	if(loadersMap.has(key(entityType,propertyName))){
+	if(globals.loadersMap.has(key(entityType,propertyName))){
 		//loader exists - initialize property
 		startLoadingProperty(entityType,entityId,propertyName)
 		
 		//add loader to queue
-		const loader = loadersMap.get(key(entityType,propertyName));
+		const loader = globals.loadersMap.get(key(entityType,propertyName));
 		addToLoaderQueue(loader,entityId,propertyName,entityType)
-		const updatedEntry = entityMap.get(key(entityType,entityId));
+		const updatedEntry = globals.entityMap.get(key(entityType,entityId));
 		return (updatedEntry && updatedEntry[propertyName])? updatedEntry[propertyName] : undefined;
 	}
 
 	//check if page loader exists (for collections)
-	if(pageLoadersMap.has(key(entityType,propertyName))){
-		const loader = pageLoadersMap.get(key(entityType,propertyName));
+	if(globals.pageLoadersMap.has(key(entityType,propertyName))){
+		const loader = globals.pageLoadersMap.get(key(entityType,propertyName));
 		const datasource = new Datasource({entityType,entityId,propertyName,loader,context});
 		storeProperty(entityType,entityId,propertyName,datasource);
-		const updatedEntry = entityMap.get(key(entityType,entityId));
+		const updatedEntry = globals.entityMap.get(key(entityType,entityId));
 		const ret = updatedEntry[propertyName];
 		return ret;
 	}
@@ -126,7 +130,7 @@ export function registerPropertyLoader(
 	propertyName:string,
 	loader:PropertyLoaderFunction
 ){
-	loadersMap.set(key(entityType,propertyName),loader);
+	globals.loadersMap.set(key(entityType,propertyName),loader);
 }
 
 export function registerPageLoader(
@@ -134,7 +138,7 @@ export function registerPageLoader(
 	propertyName:string,
 	loader:PageLoaderFunction
 ){
-	pageLoadersMap.set(key(entityType,propertyName),loader);
+	globals.pageLoadersMap.set(key(entityType,propertyName),loader);
 }
 
 export function registerPropertyGetter(entityType:string,propertyName:string,getter:PropertyGetter){
@@ -143,12 +147,12 @@ export function registerPropertyGetter(entityType:string,propertyName:string,get
 }
 
 export function getPrototype(entityType: string){
-	const ret =  prototypes.get(entityType);
+	const ret =  globals.prototypes.get(entityType);
 	if(ret){
 		return ret;
 	}else{
 		const newPrototype = {};
-		prototypes.set(entityType,newPrototype);
+		globals.prototypes.set(entityType,newPrototype);
 		return newPrototype;
 	}
 }
@@ -165,7 +169,7 @@ let loaderTimer: any = 0;
 function addToLoaderQueue(loader:Function,entityId:string,propertyName:string,entityType:string){
 	loaderQueue.push({loader,entityId,propertyName,entityType});
 	if(loaderTimer === 0){
-		loaderTimer = setTimeout(processLoaderQueue,LOADER_WAIT_MS);
+		loaderTimer = setTimeout(processLoaderQueue,globals.LOADER_WAIT_MS);
 	}
 }
 
