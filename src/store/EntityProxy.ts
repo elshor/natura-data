@@ -7,7 +7,11 @@ import { PropertyValue } from './PropertyValue';
 import { ListPropertyValue } from './index';
 import { watch } from 'vue';
 
-export function EntityProxy(entityType: string, entityId: EntityId, context?:Object){
+export function EntityProxy(
+	entityType: string, 
+	entityId: EntityId,
+	obj: Object = {},
+	context?:Object){
 	const proto = getPrototype(entityType);
 	const handlers = {
 		get({entityType,entityId,proto,context},prop){
@@ -31,6 +35,9 @@ export function EntityProxy(entityType: string, entityId: EntityId, context?:Obj
 			}
 			if(prop === '$key'){
 				return entityType + '\x01' + entityId;
+			}
+			if(obj[prop] !== undefined){
+				return obj[prop]
 			}
 			if(proto[prop]){
 				return proto[prop](entityId,entityType);
