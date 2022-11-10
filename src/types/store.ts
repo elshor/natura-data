@@ -44,7 +44,7 @@ type PageLoaderOptions = {
 	onFail: LoadPageFail
 }
 type LoadPageSuccess = (page:Page)=>void;
-type LoadPageFail = (message:string)=>void;
+type LoadPageFail = (message:string, data?: any)=>void;
 type ValueStatus = "loading"|"complete"|"partial"|"error";
 
 interface GetRowsParams {
@@ -55,7 +55,7 @@ interface GetRowsParams {
   // Callback to call for the result when successful. 
   successCallback(rowsThisBlock: any[], lastRow?: number): void;
   // Callback to call when the request fails. 
-  failCallback(): void;
+  failCallback(error?: any): void;
 }
 
 type ErrorObject = {

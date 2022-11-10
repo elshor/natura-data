@@ -4,7 +4,7 @@
  */
 import Datasource from './datasource'
 
-export default function(datasource: Datasource, startRow:number, endRow:number){
+export default async function(datasource: Datasource, startRow:number, endRow:number){
 	return new Promise((resolve,reject)=>{
 		const ret = [];
 		loadRows(resolve,reject,datasource,startRow,endRow,ret)
@@ -31,8 +31,8 @@ function loadRows(resolve:Function, reject:Function,datasource:Datasource, start
 			//load more rows
 			loadRows(resolve,reject,datasource,nextRow,endRow,rows);
 		},
-		failCallback(){
-			reject('There was an error loading the datasource rows');
+		failCallback(error: any){
+			reject(error || 'There was an error loading the datasource rows');
 		}
 	};
 	datasource.getRows(options);

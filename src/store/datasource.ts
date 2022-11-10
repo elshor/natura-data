@@ -33,91 +33,86 @@ export default class Datasource{
 		left?:number
 	){
 		left = left || (params.endRow - params.startRow);
-		const page = prevPage? await this.getNextPage(prevPage) : await this.getFirstPage();
-		if(!page){
-			//no more pages
-			return params.successCallback(data,this.rowCount);
+		const resolve = page=>{
+			if(!page){
+				//no more pages
+				params.successCallback(data,this.rowCount);
+			}else if(page.endRow <= params.startRow){
+				//this page is before required range - move to next page
+				this.loadPageRows(params,data,page,left);
+			}else if(page.startRow >= params.endRow){
+				//we passed range. return data
+				params.successCallback(data,this.rowCount);
+			}else{
+				const firstIndex = Math.max(params.startRow-page.startRow,0);
+				const loadCount = Math.min(left,page.data.length-firstIndex);
+				for(let i = firstIndex;i<(loadCount+firstIndex);++i){
+					data.push(page.data[i]);
+				}
+				if(left > loadCount){
+					//need to load more
+					this.loadPageRows(params,data,page,left-loadCount)
+				}else{
+					//completed load
+					params.successCallback(data,this.rowCount);
+				}
+			}
 		}
-		if(page.endRow <= params.startRow){
-			//this page is before required range - move to next page
-			return this.loadPageRows(params,data,page,left);
-		}
-		if(page.startRow >= params.endRow){
-			//we passed range. return data
-			return params.successCallback(data,this.rowCount);
-		}
-		const firstIndex = Math.max(params.startRow-page.startRow,0);
-		const loadCount = Math.min(left,page.data.length-firstIndex);
-		for(let i = firstIndex;i<(loadCount+firstIndex);++i){
-			data.push(page.data[i]);
-		}
-		if(left > loadCount){
-			//need to load more
-			this.loadPageRows(params,data,page,left-loadCount)
+		const reject = (e:any)=>params.failCallback(e);
+		if(prevPage){
+			this._getNextPage(resolve, reject, prevPage)
 		}else{
-			//completed load
-			params.successCallback(data,this.rowCount);
+			this._getFirstPage(resolve, reject)
 		}
 	}
-	getFirstPage(){
+	_getFirstPage(resolve:Function, reject:Function){
 		if(this.firstPage){
-			return this.firstPage;
+			resolve(this.firstPage);
 		}else{
-			return this.loadPage();
+			this._loadPage(resolve, reject);
 		}
 	}
-	async getNextPage(prevPage: Page = null){
+	async _getNextPage(resolve:Function, reject: Function, prevPage: Page = null){
 		const pageId = prevPage.nextPage;
 		if(typeof pageId !== 'string'){
 			//no next page
-			return null;
+			resolve(null);
 		}
 		if(this.pages.has(pageId)){
-			return this.pages.get(pageId);
+			resolve(this.pages.get(pageId));
 		}else{
-			return this.loadPage(prevPage)
+			this._loadPage(resolve, reject, prevPage)
 		}
 	}
-	async loadPage(prevPage?: Page) : Promise<Page>{
+	_loadPage(resolve:Function, reject: Function, prevPage?: Page){
 		const ds = this;
 		const pageId = prevPage? prevPage.nextPage : null;
-		const ret = new Promise((resolve,reject)=>{
-			ds.loader({
-				entityType: ds.entityType,
-				entityId: ds.entityId,
-				propertyName: ds.propertyName,
-				onSuccess:resolve,
-				onFail: reject,
-				pageId,
-				context: ds.context
-			})
-		}).then((ret)=>{
-			//got page
-			const page = ret as Page;
-			page.startRow = prevPage? prevPage.endRow : 0;
-			page.endRow = page.startRow + page.data.length;
-			if(!page.nextPage){
-				//reached end page - set total count
-				ds.rowCount = page.endRow
-			}
-			if(pageId !== null){
-				//this is not first page
-				ds.pages.set(pageId,page);
-			}else{
-				ds.firstPage = page;
-			}
-			return page as Page;
-		}).catch(e=>{
-			console.error('Exception loading page',e);
-			throw e;
+		ds.loader({
+			entityType: ds.entityType,
+			entityId: ds.entityId,
+			propertyName: ds.propertyName,
+			onSuccess: (page)=>{
+				//got page
+				page.startRow = prevPage? prevPage.endRow : 0;
+				page.endRow = page.startRow + page.data.length;
+				if(!page.nextPage){
+					//reached end page - set total count
+					ds.rowCount = page.endRow
+				}
+				if(pageId !== null){
+					//this is not first page
+					ds.pages.set(pageId,page);
+				}else{
+					ds.firstPage = page;
+				}
+				resolve(page);
+			},
+			onFail: (message, data)=>{
+				reject(data || message);
+			},
+			pageId,
+			context: ds.context
 		})
-		if(pageId !== null){
-			this.pages.set(pageId,ret);
-		}else{
-			//this is first page
-			this.firstPage = ret;
-		}
-		return ret;
 	}
 	slice(startRow:number,endRow:number){
 		return dataSlice(this,startRow,endRow);
