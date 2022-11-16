@@ -26,40 +26,42 @@ export default class Datasource{
 		return true;
 	}
 
-	async loadPageRows(
+	loadPageRows(
 		params: GetRowsParams, 
 		data: Array<any>, 
 		prevPage?:Page,
 		left?:number
 	){
-		left = left || (params.endRow - params.startRow);
+		left = (left === undefined)? (params.endRow - params.startRow) : left;
+		const ds = this;
 		const resolve = page=>{
 			if(!page){
 				//no more pages
-				params.successCallback(data,this.rowCount);
+				params.successCallback(data,ds.rowCount);
 			}else if(page.endRow <= params.startRow){
 				//this page is before required range - move to next page
-				this.loadPageRows(params,data,page,left);
+				ds.loadPageRows(params,data,page,left);
 			}else if(page.startRow >= params.endRow){
 				//we passed range. return data
-				params.successCallback(data,this.rowCount);
+				params.successCallback(data,ds.rowCount);
 			}else{
 				const firstIndex = Math.max(params.startRow-page.startRow,0);
 				const loadCount = Math.min(left,page.data.length-firstIndex);
+				const maxResults = (ds.rowCount === undefined)? Number.MAX_SAFE_INTEGER : ds.rowCount;
 				for(let i = firstIndex;i<(loadCount+firstIndex);++i){
 					data.push(page.data[i]);
 				}
-				if(left > loadCount){
+				if(left > loadCount && loadCount < maxResults){
 					//need to load more
-					this.loadPageRows(params,data,page,left-loadCount)
+					ds.loadPageRows(params,data,page,left-loadCount)
 				}else{
 					//completed load
-					params.successCallback(data,this.rowCount);
+					params.successCallback(data,ds.rowCount);
 				}
 			}
 		}
 		const reject = (e:any)=>params.failCallback(e);
-		if(prevPage){
+		if(prevPage && prevPage.nextPage){
 			this._getNextPage(resolve, reject, prevPage)
 		}else{
 			this._getFirstPage(resolve, reject)
@@ -72,13 +74,12 @@ export default class Datasource{
 			this._loadPage(resolve, reject);
 		}
 	}
-	async _getNextPage(resolve:Function, reject: Function, prevPage: Page = null){
+	_getNextPage(resolve:Function, reject: Function, prevPage: Page = null){
 		const pageId = prevPage.nextPage;
 		if(typeof pageId !== 'string'){
 			//no next page
 			resolve(null);
-		}
-		if(this.pages.has(pageId)){
+		}else if(this.pages.has(pageId)){
 			resolve(this.pages.get(pageId));
 		}else{
 			this._loadPage(resolve, reject, prevPage)
@@ -86,6 +87,10 @@ export default class Datasource{
 	}
 	_loadPage(resolve:Function, reject: Function, prevPage?: Page){
 		const ds = this;
+		if(prevPage && !prevPage.nextPage){
+			//no next page - resolve null
+			resolve(null);
+		}
 		const pageId = prevPage? prevPage.nextPage : null;
 		ds.loader({
 			entityType: ds.entityType,
