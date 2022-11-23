@@ -35,7 +35,7 @@ export default class Datasource{
 		left = (left === undefined)? (params.endRow - params.startRow) : left;
 		const ds = this;
 		const resolve = page=>{
-			if(!page){
+			if(!page || page.data.length === 0){
 				//no more pages
 				params.successCallback(data,ds.rowCount);
 			}else if(page.endRow <= params.startRow){
