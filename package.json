@@ -4,6 +4,7 @@
   "description": "",
   "main": "dist/main.js",
   "scripts": {
+    "install": "webpack --mode production",
     "build": "webpack --mode development",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
