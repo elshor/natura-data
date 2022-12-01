@@ -2,7 +2,6 @@
  *   Copyright (c) 2022 DSAS Holdings LTD.
  *   All rights reserved.
  */
-import {PageLoaderOptions} from 'natura-data'
 import { BigQuery, Job } from "@google-cloud/bigquery";
 
 type PageLoaderThis = {
