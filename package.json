@@ -4,13 +4,12 @@
   "description": "",
   "main": "dist/main.js",
   "scripts": {
-    "build": "webpack --mode development",
+    "build": "webpack --mode production",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/bigquery": "^6.0.2",
     "axios": "^1.2.0",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.0",
